@@ -4,11 +4,11 @@ import org.springframework.stereotype.Repository;
 import ru.viktor.exception.NotFoundException;
 import ru.viktor.model.Post;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 // Stub
 @Repository
@@ -19,11 +19,15 @@ public class PostRepository {
 
 
   public List<Post> all() {
-    return new ArrayList<>(postMap.values());
+    return postMap.values().stream().filter(post -> !post.isRemoved()).collect(Collectors.toList());
   }
 
   public Optional<Post> getById(long id) {
-    return Optional.ofNullable(postMap.get(id));
+    Post post = postMap.get(id);
+    if(post != null && !post.isRemoved()){
+      return Optional.of(post);
+    }
+    return Optional.empty();
   }
 
   public Post save(Post post) {
@@ -33,15 +37,21 @@ public class PostRepository {
       return post;
     }
 
-    if(postMap.containsKey(post.getId())){
-      postMap.get(post.getId()).setContent(post.getContent());
-    }else {
-      throw new NotFoundException();
-    }
+    if(!postMap.containsKey(post.getId()))throw new NotFoundException();
+
+    Post editedPost = postMap.get(post.getId());
+
+    if(editedPost.isRemoved())throw new NotFoundException();
+
+
+    editedPost.setContent(post.getContent());
+
     return post;
   }
 
   public void removeById(long id) {
-    postMap.remove(id);
+    if(postMap.containsKey(id)){
+      postMap.get(id).setRemoved(true);
+    }
   }
 }
